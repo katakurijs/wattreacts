@@ -26,8 +26,17 @@ def run_flask():
 # Initialize bot
 intents = discord.Intents.default()
 intents.message_content = True
+intents.presences = True
+intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
+
+NOTIFICATION_CHANNEL_ID = 1450924782483804290  # Replace with your channel ID
+USERS_TO_MONITOR = [
+    788903923922632704,
+    1190979849926496276# User ID 2
+    # Add more user IDs here
+]
 
 # Database setup
 DB_FILE = "requests.db"
@@ -245,6 +254,32 @@ async def clear_requests(interaction: discord.Interaction):
     conn.close()
     
     await interaction.response.send_message("🗑️ All requests have been cleared!", ephemeral=True)
+
+@bot.event
+async def on_presence_update(before, after):
+    # Check if this user is in our monitoring list
+    if after.id not in USERS_TO_MONITOR:
+        return
+    
+    old_status = before.status if before else discord.Status.offline
+    new_status = after.status
+    
+    # Only notify when user goes from offline to any online status
+    if old_status == discord.Status.offline and new_status != discord.Status.offline:
+        channel = bot.get_channel(NOTIFICATION_CHANNEL_ID)
+        if channel:
+            # Status emojis
+            status_emoji = {
+                discord.Status.online: '🟢',
+                discord.Status.idle: '🟡',
+                discord.Status.dnd: '🔴',
+            }
+            
+            emoji = status_emoji.get(new_status, '⚪')
+            
+            # Send notification
+            await channel.send(f"{emoji} **{after.name}** is now {new_status}!")
+            print(f"📢 Notified: {after.name} went {new_status}")
 
 @client.event
 async def on_ready():
