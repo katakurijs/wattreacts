@@ -6,9 +6,6 @@ import os
 from datetime import datetime
 import threading
 from flask import Flask
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Flask setup
 app = Flask(__name__)
@@ -165,6 +162,14 @@ class NavigateRequestsView(View):
         
         await interaction.response.edit_message(embed=embed, view=self)
     
+    @discord.ui.button(label="🔄", style=discord.ButtonStyle.success, custom_id="refresh_request")
+    async def refresh_button(self, interaction: discord.Interaction, button: Button):
+        """Refresh the current request view"""
+        request = get_request_by_index(self.current_index)
+        embed = self.create_embed(request)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+    
     @discord.ui.button(label="Next ➡️", style=discord.ButtonStyle.primary, custom_id="next_request")
     async def next_button(self, interaction: discord.Interaction, button: Button):
         total = get_total_requests()
@@ -181,28 +186,15 @@ class NavigateRequestsView(View):
         embed = self.create_embed(request)
         
         await interaction.response.edit_message(embed=embed, view=self)
-    
-    @discord.ui.button(label="🔄 Refresh", style=discord.ButtonStyle.success, custom_id="refresh_request")
-    async def refresh_button(self, interaction: discord.Interaction, button: Button):
-        """Refresh the current request view"""
-        request = get_request_by_index(self.current_index)
-        embed = self.create_embed(request)
-        
-        await interaction.response.edit_message(embed=embed, view=self)
 
 # Setup command - creates the submission interface
 @tree.command(name="setup_submit", description="Setup the request submission interface")
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_submit(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="🎬 Submit a Reaction Request",
-        description="Click the button below to submit a reaction request for the streamer!",
+        title="# 🎬 SUBMIT YOUR REACTION REQUESTS HERE",
+        description="Click the button below to send your reaction!",
         color=discord.Color.blue()
-    )
-    embed.add_field(
-        name="How to submit:",
-        value="1. Click 'Submit Request'\n2. Fill in the title/message\n3. Paste your link\n4. Click Submit!",
-        inline=False
     )
     
     view = SubmitRequestView()
