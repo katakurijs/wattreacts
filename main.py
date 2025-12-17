@@ -53,6 +53,8 @@ def init_db():
                   link TEXT,
                   timestamp TEXT,
                   viewed INTEGER DEFAULT 0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS tracked_users
+                 (user_id TEXT PRIMARY KEY)''')
     conn.commit()
     conn.close()
 
