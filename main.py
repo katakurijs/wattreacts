@@ -26,12 +26,12 @@ def run_flask():
 # Initialize bot
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True  # Required for presence updates
 intents.presences = True
-intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-NOTIFICATION_CHANNEL_ID = 1450924782483804290  # Replace with your channel ID
+NOTIFICATION_CHANNEL_ID = int(os.getenv("NOTIFICATION_CHANNEL_ID")) # Replace with your channel ID
 USERS_TO_MONITOR = [
     788903923922632704,
     1190979849926496276# User ID 2
@@ -255,31 +255,105 @@ async def clear_requests(interaction: discord.Interaction):
     
     await interaction.response.send_message("🗑️ All requests have been cleared!", ephemeral=True)
 
-@bot.event
+def add_tracked_user(user_id):
+    """Add a user to track for online status"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS tracked_users (user_id TEXT PRIMARY KEY)")
+    c.execute("INSERT OR IGNORE INTO tracked_users (user_id) VALUES (?)", (str(user_id),))
+    conn.commit()
+    conn.close()
+
+def remove_tracked_user(user_id):
+    """Remove a user from tracking"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM tracked_users WHERE user_id = ?", (str(user_id),))
+    conn.commit()
+    conn.close()
+
+def get_tracked_users():
+    """Get list of tracked user IDs"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS tracked_users (user_id TEXT PRIMARY KEY)")
+    c.execute("SELECT user_id FROM tracked_users")
+    results = c.fetchall()
+    conn.close()
+    return [int(row[0]) for row in results]
+
+def is_user_tracked(user_id):
+    """Check if a user is being tracked"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM tracked_users WHERE user_id = ?", (str(user_id),))
+    result = c.fetchone()
+    conn.close()
+    return result is not None
+
+# Event listener for presence updates
+@client.event
 async def on_presence_update(before, after):
-    # Check if this user is in our monitoring list
-    if after.id not in USERS_TO_MONITOR:
+    """Triggered when a user's status changes"""
+    # Check if user is tracked
+    if not is_user_tracked(after.id):
         return
     
-    old_status = before.status if before else discord.Status.offline
-    new_status = after.status
+    # Check if they went from offline/invisible to online
+    before_offline = before.status in [discord.Status.offline, discord.Status.invisible]
+    after_online = after.status == discord.Status.online
     
-    # Only notify when user goes from offline to any online status
-    if old_status == discord.Status.offline and new_status != discord.Status.offline:
-        channel = bot.get_channel(NOTIFICATION_CHANNEL_ID)
+    if before_offline and after_online:
+        channel = client.get_channel(NOTIFICATION_CHANNEL_ID)
         if channel:
-            # Status emojis
-            status_emoji = {
-                discord.Status.online: '🟢',
-                discord.Status.idle: '🟡',
-                discord.Status.dnd: '🔴',
-            }
-            
-            emoji = status_emoji.get(new_status, '⚪')
-            
-            # Send notification
-            await channel.send(f"{emoji} **{after.name}** is now {new_status}!")
-            print(f"📢 Notified: {after.name} went {new_status}")
+            embed = discord.Embed(
+                title="🟢 User Online",
+                description=f"{after.mention} is now online!",
+                color=discord.Color.green()
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
+            await channel.send(embed=embed)
+
+# Commands to manage tracked users
+@tree.command(name="track_user", description="Start tracking when a user comes online")
+@app_commands.checks.has_permissions(administrator=True)
+async def track_user(interaction: discord.Interaction, user: discord.Member):
+    add_tracked_user(user.id)
+    await interaction.response.send_message(
+        f"✅ Now tracking {user.mention} for online status!",
+        ephemeral=True
+    )
+
+@tree.command(name="untrack_user", description="Stop tracking a user's online status")
+@app_commands.checks.has_permissions(administrator=True)
+async def untrack_user(interaction: discord.Interaction, user: discord.Member):
+    remove_tracked_user(user.id)
+    await interaction.response.send_message(
+        f"❌ Stopped tracking {user.mention}",
+        ephemeral=True
+    )
+
+@tree.command(name="list_tracked", description="List all tracked users")
+@app_commands.checks.has_permissions(administrator=True)
+async def list_tracked(interaction: discord.Interaction):
+    tracked_ids = get_tracked_users()
+    
+    if not tracked_ids:
+        await interaction.response.send_message("No users are being tracked.", ephemeral=True)
+        return
+    
+    users = []
+    for user_id in tracked_ids:
+        user = interaction.guild.get_member(user_id)
+        if user:
+            users.append(f"• {user.mention} ({user.name})")
+    
+    embed = discord.Embed(
+        title="👁️ Tracked Users",
+        description="\n".join(users) if users else "No tracked users found in this server.",
+        color=discord.Color.blue()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @client.event
 async def on_ready():
