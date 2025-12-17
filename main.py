@@ -158,6 +158,11 @@ class NavigateRequestsView(View):
             self.current_index -= 1
         
         request = get_request_by_index(self.current_index)
+        
+        # Mark as viewed if it exists
+        if request:
+            mark_as_viewed(request[0])
+        
         embed = self.create_embed(request)
         
         await interaction.response.edit_message(embed=embed, view=self)
@@ -166,6 +171,11 @@ class NavigateRequestsView(View):
     async def refresh_button(self, interaction: discord.Interaction, button: Button):
         """Refresh the current request view"""
         request = get_request_by_index(self.current_index)
+        
+        # Mark as viewed if it exists
+        if request:
+            mark_as_viewed(request[0])
+        
         embed = self.create_embed(request)
         
         await interaction.response.edit_message(embed=embed, view=self)
@@ -174,7 +184,10 @@ class NavigateRequestsView(View):
     async def next_button(self, interaction: discord.Interaction, button: Button):
         total = get_total_requests()
         
-        if self.current_index < total:
+        # If we're at "no requests" screen, check if new ones exist
+        if self.current_index >= total and total > 0:
+            self.current_index = total - 1
+        elif self.current_index < total:
             self.current_index += 1
         
         request = get_request_by_index(self.current_index)
