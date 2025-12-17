@@ -6,6 +6,9 @@ import os
 from datetime import datetime
 import threading
 from flask import Flask
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Flask setup
 app = Flask(__name__)
