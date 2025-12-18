@@ -308,13 +308,12 @@ async def on_presence_update(before, after):
     if before_offline and after_online:
         channel = client.get_channel(NOTIFICATION_CHANNEL_ID)
         if channel:
-            embed = discord.Embed(
-                title="🟢 User Online",
-                description=f"{after.mention} is now online!",
-                color=discord.Color.green()
-            )
-            embed.set_thumbnail(url=after.display_avatar.url)
-            await channel.send(embed=embed)
+    embed = discord.Embed(
+        title="# 🟢 **Bob is now ONLINE**",
+        color=discord.Color.green()
+    )
+    embed.set_thumbnail(url=after.display_avatar.url)
+    await channel.send(content="@everyone", embed=embed)
 
 # Commands to manage tracked users
 @tree.command(name="track_user", description="Start tracking when a user comes online")
