@@ -216,7 +216,7 @@ class NavigateRequestsView(View):
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_submit(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="# 🎬 SUBMIT YOUR REACTION REQUESTS HERE",
+        title="# 🎬 SEND YOUR REACTION REQUESTS HERE",
         description="Click the button below to send your reaction!",
         color=discord.Color.blue()
     )
@@ -308,12 +308,12 @@ async def on_presence_update(before, after):
     if before_offline and after_online:
         channel = client.get_channel(NOTIFICATION_CHANNEL_ID)
         if channel:
-    embed = discord.Embed(
-        title="# 🟢 **Bob is now ONLINE**",
-        color=discord.Color.green()
-    )
-    embed.set_thumbnail(url=after.display_avatar.url)
-    await channel.send(content="@everyone", embed=embed)
+            embed = discord.Embed(
+                title="# 🟢 **Bob is now ONLINE**",
+                color=discord.Color.green()
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
+            await channel.send(content="@everyone", embed=embed)
 
 # Commands to manage tracked users
 @tree.command(name="track_user", description="Start tracking when a user comes online")
